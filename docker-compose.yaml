@@ -1,0 +1,43 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    container_name: my_postgres
+    environment:
+      POSTGRES_DB: scraped_data
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  api:
+    build:
+      context: .                    # Root directory as build context
+      dockerfile: backend/Dockerfile
+    container_name: my_api
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: postgres
+      DB_NAME: scraped_data
+      DB_USER: myuser
+      DB_PASSWORD: mypassword
+    depends_on:
+      - postgres
+
+  streamlit:
+    build:
+      context: .                    # Root directory as build context
+      dockerfile: frontend/Dockerfile
+    container_name: my_streamlit
+    ports:
+      - "8501:8501"
+    environment:
+      API_BASE_URL: "http://api:8000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
