@@ -21,7 +21,7 @@ st.sidebar.header("Filters")
 def get_brands() -> List[str]:
     """Fetch available brands from API"""
     try:
-        response = requests.get(f"{API_BASE_URL}/brands")
+        response = requests.get(f"{API_BASE_URL}/brands/names")
         if response.status_code == 200:
             brands_data = response.json()["brands"]
             return [brand["brand"] for brand in brands_data]
@@ -38,7 +38,7 @@ def get_products(brand=None, limit=50, offset=0, search_term=None) -> Dict:
             params = {"limit": limit, "offset": offset}
             if brand and brand != "All Brands":
                 params["brand"] = brand
-            response = requests.get(f"{API_BASE_URL}/products", params=params)
+            response = requests.get(f"{API_BASE_URL}/products/names", params=params)
         
         if response.status_code == 200:
             return response.json()
@@ -167,7 +167,7 @@ st.sidebar.header("📊 Quick Stats")
 
 try:
     # Get brand statistics
-    brands_response = requests.get(f"{API_BASE_URL}/brands")
+    brands_response = requests.get(f"{API_BASE_URL}/brands/names")
     if brands_response.status_code == 200:
         brands_data = brands_response.json()["brands"]
         st.sidebar.metric("Total Brands", len(brands_data))
@@ -180,7 +180,7 @@ try:
                 st.sidebar.write(f"• {brand['brand']}: {brand['product_count']}")
     
     # Get total products
-    total_response = requests.get(f"{API_BASE_URL}/products?limit=1")
+    total_response = requests.get(f"{API_BASE_URL}/products/names?limit=1")
     if total_response.status_code == 200:
         total = total_response.json().get("total", 0)
         st.sidebar.metric("Total Products", total)
