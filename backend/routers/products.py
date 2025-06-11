@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from backend.database import get_db_connection
+#from backend.database import get_db_connection
+from database import get_db_connection
 
 router = APIRouter(prefix="/products", tags=["products"])
 # ... rest of your routes
@@ -10,7 +11,7 @@ router = APIRouter(prefix="/products", tags=["products"])
 
 
 
-@router.get("/products/names")
+@router.get("/names")
 async def get_product_names():
     """Get all product names"""
     try:
@@ -62,7 +63,7 @@ async def get_products(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-@router.get("/products/{product_id}")
+@router.get("/{product_id}")
 async def get_product(product_id: int):
     """Get a specific product by ID"""
     try:
@@ -78,7 +79,7 @@ async def get_product(product_id: int):
     except psycopg2.Error as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
-@router.get("/products/search")
+@router.get("/search")
 async def search_products(q: str = Query(..., min_length=2)):
     """Search products by name"""
     try:

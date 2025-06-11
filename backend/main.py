@@ -1,10 +1,12 @@
 from fastapi import FastAPI
-from backend.routers import products
-from backend.database import get_db_connection
+#from backend.routers import products
+#from backend.database import get_db_connection
+from routers import products, brands
+from database import get_db_connection
 
 app = FastAPI(title="Product API", description="API for scraped product data")
 app.include_router(products.router)
-
+app.include_router(brands.router)
 @app.get("/")
 async def root():
     return {"message": "Product API is working!"}
