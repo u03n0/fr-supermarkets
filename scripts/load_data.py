@@ -3,13 +3,14 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 import time
+from pathlib import Path 
 
 def wait_for_postgres():
     max_retries = 30
     for i in range(max_retries):
         try:
             conn = psycopg2.connect(
-                host=os.getenv('DB_HOST', 'localhost'),  # Change to 'postgres' if running in Docker
+                #host=os.getenv('DB_HOST', 'localhost'),  # Change to 'postgres' if running in Docker
                 database=os.getenv('DB_NAME', 'scraped_data'),
                 user=os.getenv('DB_USER', 'myuser'),
                 password=os.getenv('DB_PASSWORD', 'mypassword')
@@ -22,7 +23,7 @@ def wait_for_postgres():
             time.sleep(2)
     return False
 
-def main():
+def main(path):
     if not wait_for_postgres():
         print("Failed to connect to PostgreSQL")
         exit(1)
@@ -48,18 +49,18 @@ def main():
             unit_label TEXT,
             size TEXT,
             promo TEXT,
+            market TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    
     # Load JSON data
-    with open('data/monoprix.json', 'r', encoding='utf-8') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         products = json.load(f)
     
     # Insert data
     insert_query = """
-        INSERT INTO products (name, brand, price, unit_price, unit_label, size, promo) 
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO products (name, brand, price, unit_price, unit_label, size, promo, market) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
     """
     
     inserted_count = 0
@@ -72,7 +73,8 @@ def main():
                 float(product.get('unit_price', 0)) if product.get('unit_price') else None,
                 product.get('unit_label'),
                 product.get('size'),
-                product.get('promo')
+                product.get('promo'),
+                product.get('market')
             ))
             inserted_count += 1
         except Exception as e:
@@ -86,4 +88,6 @@ def main():
     print(f"Successfully inserted {inserted_count} products into the database!")
 
 if __name__ == "__main__":
-    main()
+    pathlist = Path("data").glob("*.json")
+    for path in pathlist:
+        main(path)

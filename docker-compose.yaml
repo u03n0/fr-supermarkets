@@ -1,43 +1,92 @@
 version: '3.8'
+
 services:
+  # PostgreSQL Database
   postgres:
     image: postgres:15
-    container_name: my_postgres
+    container_name: postgres_db
     environment:
-      POSTGRES_DB: scraped_data
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: myapp_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"  # Changed to avoid conflicts
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d myapp_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-  api:
+  # FastAPI Backend
+  backend:
     build:
-      context: .                    # Root directory as build context
-      dockerfile: backend/Dockerfile
-    container_name: my_api
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fastapi_backend
     ports:
       - "8000:8000"
     environment:
-      DB_HOST: postgres
-      DB_NAME: scraped_data
-      DB_USER: myuser
-      DB_PASSWORD: mypassword
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/myapp_db
+      - PYTHONPATH=/app
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data  # Mount data directory
+    networks:
+      - app-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-  streamlit:
+  # Streamlit Frontend
+  frontend:
     build:
-      context: .                    # Root directory as build context
-      dockerfile: frontend/Dockerfile
-    container_name: my_streamlit
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: streamlit_frontend
     ports:
       - "8501:8501"
     environment:
-      API_BASE_URL: "http://api:8000"
+      - BACKEND_URL=http://backend:8000
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
     depends_on:
-      - api
+      - backend
+    volumes:
+      - ./frontend:/app
+    networks:
+      - app-network
+    command: streamlit run main.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true
+
+  # Data Loader (runs once to populate DB)
+  data-loader:
+    build:
+      context: ./scripts
+      dockerfile: Dockerfile
+    container_name: data_loader
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/myapp_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./scripts:/app
+      - ./data:/app/data
+    networks:
+      - app-network
+    profiles:
+      - tools  # Only runs when explicitly called
+    command: python load_data.py
 
 volumes:
   postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
